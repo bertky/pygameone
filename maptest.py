@@ -2,6 +2,8 @@
 
 class Map:
 
+	tiles = [{"kind":"wall","block":True},{"kind":"floor","block":False}]
+
 	def __init__(self):
 
 		##hard coding for first tests
@@ -20,7 +22,15 @@ class Map:
 			print(x, 'out of x range')
 		return position, position[0]
 
-	def _set_coords(self,x,y,new_value):
+	def _get_value(self,x,y):
+
+		try:
+			pos, value = self._get_coords(x,y)
+		except:
+			print('could not get',x,y)
+		return value
+
+	def _set_value(self,x,y,new_value):
 
 		try:
 			pos, old_value = self._get_coords(x,y)
@@ -31,5 +41,6 @@ class Map:
 
 ##testing
 map = Map()
-map._set_coords(0,0,4)
-print(map._get_coords(0,0))
+print(map._get_value(0,0))
+map._set_value(0,0,{'alice'})
+print(map._get_value(0,0))
