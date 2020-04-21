@@ -3,10 +3,6 @@
 
 import random
 
-
-global once
-once = False
-
 class Tile:
 
 	def __init__(self,g,x,y):
@@ -74,6 +70,14 @@ class Cell(Tile):
 		if rnd < chance:
 			self.alive = True
 
+	def living_neighbor(self,dx,dy):
+		living_neighbor = False
+		neighbor = self.neighbor(dx,dy)
+		if neighbor:
+			living_neighbor = neighbor.alive and neighbor or False
+		return living_neighbor
+	
+
 	@property
 	def living_neighbors(self):
 	
@@ -84,12 +88,14 @@ class Cell(Tile):
 
 class Map:
 
-	def __init__(self,size=10):
+	def __init__(self,width = 10, height = 10):
 
+		self.width = width
+		self.height = height
 		self.g    = []
-		for y in range(0,size):
+		for y in range(0,height):
 			self.g.append([])
-			for x in range(0,size):
+			for x in range(0,width):
 				self.g[y].append([Tile(self,x,y)])
 
 	def __iter__(self):
@@ -103,41 +109,52 @@ class Map:
 		rtrn = ''
 		for y in self.g:
 			for x in y:
-				rtrn+=x[0].attr['wall'] and '%' or ' '
+				rtrn+=x[0].attr['wall'] and '%' or x[0].attr['floor'] and '.' or' '
 			rtrn+='\n'
 		return rtrn
 
 	def __call__(self,x,y):
-		exists = 0 <= y <= len(self.g) - 1 and 0 <=  x <= len(self.g) - 1
+		exists = 0 <= x <= self.width - 1 and 0 <= y <= self.height - 1
 		return exists and self.g[y][x][0] or False
 
 class LivingGrid(Map):
 
-	def __init__(self,size=10):
+	def __init__(self,width = 10, height=10):
 
-		Map.__init__(self,size)
+		Map.__init__(self, width, height)
 		self.g    = []
-		for y in range(0,size):
+		for y in range(0, height):
 			self.g.append([])
-			for x in range(0,size):
+			for x in range(0, width):
 				self.g[y].append([Cell(self,x,y)])
 
 	def __repr__(self):
 
 		rtrn = ''
-		for y in self.g:
-			for x in y:
-				rtrn+=x[0].alive and '%' or '.'
+		for y in range(0,self.width-1):
+			for x in range(0,self.height-1):
+				rtrn+=self(x,y).alive and '%' or '.'
 			rtrn+='\n'
 		return rtrn
 
 	def __gt__(self,other_grid):
-		if len(self.g) <= len(other_grid.g):
-			for c in self:
-				if c.alive:
-					other_grid(c.x,c.y).attr['wall']=True
-				else:
+		for c in self:
+			if c.alive:
+				if len(c.neighbors) == len(c.living_neighbors):
 					other_grid(c.x,c.y).attr['wall']=False
+					other_grid(c.x,c.y).attr['floor']=False
+				else:
+					other_grid(c.x,c.y).attr['wall']=True
+					other_grid(c.x,c.y).attr['floor']=False
+					tile = 0
+					tile += c.living_neighbor(0,-1) and 1 or 0
+					tile += c.living_neighbor(1,0) and 2 or 0
+					tile += c.living_neighbor(0,1) and 4 or 0
+					tile += c.living_neighbor(-1,0) and 8 or 0
+					other_grid(c.x,c.y).attr['tile'] = tile
+			else:
+				other_grid(c.x,c.y).attr['wall']=False
+				other_grid(c.x,c.y).attr['floor']=True
 
 	def spawn(self,chance=.5):
 		for c in self:
@@ -148,11 +165,12 @@ class LivingGrid(Map):
 			c.assign_total_living_neighbors()
 
 	def force_walls(self):
-		for z in range(0,len(self.g)):
-			self(0,z).alive = True
-			self(len(self.g)-1,z).alive = True
-			self(z,0).alive = True
-			self(z,len(self.g)-1).alive = True
+		for x in range(0,self.width):
+			self(x,0).alive = True
+			self(x,self.height-1).alive = True
+		for y in range(0,self.height):
+			self(0,y).alive = True
+			self(self.width-1,y).alive = True
 		
 	def cycle(self,live_limit=4,die_limit=4):
 		self.force_walls()
@@ -163,8 +181,8 @@ class LivingGrid(Map):
 			if c.total_living_neighbors > live_limit:
 				c.alive = True
 		
-grid = Map(50)
-cell_grid = LivingGrid(50)
+grid = Map(20,15)
+cell_grid = LivingGrid(20,15)
 cell_grid.spawn(.475)
 cell_grid.cycle()
 cell_grid.cycle(6,3)
