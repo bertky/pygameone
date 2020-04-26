@@ -4,193 +4,128 @@ import pygame.locals as pg
 
 import random
 
-## hello world
+##########################################################################
+#
+#  pygame experiment to learn python
+#
+#  manages a map of tiles
+#
+#  map contains and references tilesets
+#
+#  map renders two static layers to pass to pygame
+#
+#  map will play a cellular automata game to procedurally generate level
+#
+#  maps contain and reference tilesets
+#
+#  tilesets contain subsurfaces at positions
+#
+#  flags can alter a tilesets behavior
+#
+#  tilesets images arranged according to binary math
+#
+#  tiles hold references to the map
+#
+#  tiles hold a dictionary of attributes
+#
+#  tiles can learn about their neighbors
+#
+#  objects maintain a reference to the tile they exist on
+#
+#  mobile objects have reference for tile moving from and coming to
+#
+#  mobile objects can test tiles and other objects
+#
+#  the initial demo contained map generation
+#  
+#  the second demo will allow movement of a character object with minimal animation
+#
+###################################################################################
+
 
 TILE_SIZE  = 24
 MAP_WIDTH  = 60
 MAP_HEIGHT = 40
 
+######################################################################
+# The Tile class holds an instance for every tile in the map
+# 
+# can preform various tests on itself and its neighbors
+#
+# testing edge/all/any should be a method on self not neighbors only
+#
+# no method for preforming operations on attributes
+# 
+# 
+# #####################################################################
+
 class Tile:
-
-	def __init__(self,g,x,y,attr={}):
-
-		self.g    = g
-		self.x    = x
-		self.y    = y
-		self.attr = attr
-
+	def __init__(self,_map,x=0,y=0):
+		self.parent = _map
+		self.x      = x
+		self.y      = y
+		self.dict   = {}
 	def __repr__(self):
-
-		return "tile:"+str(self.x)+","+str(self.y)+":"+str(self.attr)
-
-	def get_attr(self, attr='nil'):
-
-		value = None
-
-		try:
-
-			value = self.attr[attr]
-
-		except KeyError:
-
-			value = None
-
-		return value
-
-	def set_attr(self, attr='nil', value=False):
-
-		self.attr.update({attr:value})
-
-	def set_attr_rand(self, attr='nil', probability=0.5):
-
-		value = random.random() < probability and True or False
-
-		self.set_attr(attr, value)
-
-		return value
-
-	def neighbor(self,dx=0,dy=0):
-
+		return "tile:"+str(self.x)+","+str(self.y)+":"+str(self.dict)
+	def has_attribute(self,attr):
+		return attr in self.dict.keys()
+	def get_attribute(self,attr):
+		if self.has_attribute(attr):
+			return self.dict[attr]
+	def set_attribute(self, attr, value):
+		self.dict.update({attr:value})
+	def chance_set_attribute(self, attr, v1=True, v2=False,p=0.5):
+		v = random.random() < p and v1 or v2
+		self.set_attribute(attr, v)
+	def get_neighbor(self,dx,dy):
 		nx, ny = self.x + dx, self.y + dy
-
-		neighbor = self.g(nx,ny)
-		
-		return neighbor
-
+		return self.parent(nx,ny)
 	def get_neighbors(self, ortho=True, diag=True):
-
 		neighbors = []
-
-		if ortho:
-
-			neighbors += self.get_ortho_neighbors()
-
-		if diag:
-
-			neighbors += self.get_diag_neighbors()
-
+		neighbors += ortho and [self.get_neighbor(0,-1),
+			self.get_neighbor(1,0),
+			self.get_neighbor(0,1),
+			self.get_neighbor(-1,0)] or []
+		neighbors += diag  and [self.get_neighbor(-1,-1),
+			self.get_neighbor(1,-1),
+			self.get_neighbor(-1,1),
+			self.get_neighbor(1,1,)] or []
+		neighbors = set(neighbors)
+		neighbors.discard(None)
 		return neighbors
-
-	def get_ortho_neighbors(self):
-
-		neighbors = []
-
-		for dx in range(-1,2,2):
-
-			for dy in range(-1,2,2):
-
-				neighbors.append(self.neighbor(dx,dy))
-
-		neighbors = [i for i in set(neighbors) if i]
-
-		return neighbors
-
-	def get_diag_neighbors(self):
-
-		neighbors = []
-
-		for dx in range(-1,2,2):
-
-			neighbors.append(self.neighbor(dx,0))
-
-		for dy in range(-1,2,2):
-
-			neighbors.append(self.neighbor(0,dy))
-
-		neighbors = [i for i in set(neighbors) if i]
-
-		return neighbors
-
-	def get_neighbor_attr(self,dx=0,dy=0,attr='nil'):
-
-		neighbor = self.neighbor(dx,dy)
-		
+	def get_neighbor_with(self,attr,dx,dy):
+		neighbor = self.get_neighbor(dx,dy)
 		if neighbor:
+			return neighbor.get_attribute(attr)
+	def get_neighbors_with(self,attr,ortho=True,diag=True):
+		neighbors 	= self.get_neighbors(ortho,diag)
+		neighbors_r = [x for x in neighbors if x.get_attribute(attr)]
+		return neighbors_r
+	def get_neighbors_without(self,attr,ortho=True,diag=True):
+		neighbors 	= self.get_neighbors(ortho,diag)
+		neighbors_r = [x for x in neighbors if not x.get_attribute(attr)]
+		return neighbors_r
+	def count_neighbors(self,ortho=True,diag=True):
+		return len(self.get_neighbors(ortho,diag))
+	def count_neighbors_with(self,attr,ortho=True,diag=True):
+		return len(self.get_neighbors_with(attr,ortho,diag))
+	def count_neighbors_without(self,attr,ortho=True,diag=True):
+		return len(self.get_neighbors_without(attr,ortho,diag))
+	def is_edge_of(self,attr,ortho=True,diag=True):
+		return self.count_neighbors_with(attr,ortho,diag) != self.count_neighbors()
+	def is_surrounded_by(self,attr,ortho=True,diag=True):
+		return self.count_neighbors_with(attr,ortho,diag) == self.count_neighbors()
 
-			neighbor = neighbor.get_attr(attr) and neighbor or False
-		
-		return neighbor
-
-	def get_neighbors_attr(self,attr='nil',ortho=True,diag=True):
-
-		neighbors_attr = []
-
-		if ortho:
-
-			neighbors_attr += self.get_ortho_neighbors_attr(attr)
-
-		if diag:
-
-			neighbors_attr += self.get_diag_neighbors_attr(attr)
-
-		return neighbors_attr
-	
-	def get_ortho_neighbors_attr(self,attr='nil'):
-
-		ortho_neighbors = self.get_ortho_neighbors()
-
-		neighbors_attr = [i for i in set(ortho_neighbors) if i.attr[attr]]
-
-		return neighbors_attr
-	
-	def get_diag_neighbors_attr(self,attr='nil'):
-
-		diag_neighbors = self.get_diag_neighbors()
-
-		neighbors_attr = [i for i in set(diag_neighbors) if i.attr[attr]]
-
-		return neighbors_attr
-
-	def is_all_neighbors_attr(self,attr='nil',ortho=True,diag=True):
-
-		total_neighbors_attr = self.get_neighbors_attr(attr, ortho, diag)
-
-		total_neighbors = self.get_neighbors(ortho, diag)
-
-		all_neighbors_attr = len(total_neighbors) == len(total_neighbors_attr)
-
-		return all_neighbors_attr
-
-	def is_any_neighbor_all_neighbors_attr(self,attr='nil',ortho=True,diag=True):
-
-		neighbors = self.get_neighbors(ortho, diag)
-
-		neighbors_all_neighbors_attr = [tile for tile in set(neighbors) if tile.is_all_neighbors_attr(attr,ortho,diag)]
-
-		return len(neighbors_all_neighbors_attr) > 0
-
-	def is_neighbor_attr_edge(self,dx=0,dy=0,attr='nil',ortho=True,diag=True):
-
-		neighbor = self.neighbor(dx,dy)
-
-		if neighbor:
-
-			neighbor_neighbors = len([i for i in neighbor.get_neighbors(ortho,diag) if i])	
-
-			neighbor_neighbors_attr = len([i for i in neighbor.get_neighbors_attr(attr,ortho,diag) if i])
-
-			edge_neighbors_attr = neighbor_neighbors > neighbor_neighbors_attr
-
-			print(self,dx,dy,neighbor_neighbors,neighbor_neighbors_attr)
-
-		else:
-
-			edge_neighbors_attr = False
-
-		return edge_neighbors_attr
-
-	def set_neighbor_attr_count(self, attr='nil', ortho=True, diag=True):
-
-		attr_name = attr + '_neighbor_count'
-
-		attr_count = len(self.get_neighbors_attr(attr, ortho, diag))
-
-		self.set_attr(attr_name, attr_count)
+########################################################################
+# The Map 
+# has subsurfaces for floors and walls
+# call an instance and it will call self.g instance
+# calling the g instance will return tile at x,y or return False
+# can play a game of life to create a procedural cavern
+########################################################################
 
 class Map:
-
 	def __init__(self, width = 10, height = 10):
-
 		self.width 		= width
 		self.height 	= height
 		self.tilesets 	= {}
@@ -198,258 +133,145 @@ class Map:
 		self.walls 		= pygame.surface.Surface(self.get_dimensions())
 		self.walls.set_colorkey((0,0,0))
 		self.objects 	= []
-		self.g     		= []
+		self.arrays 	= []
 		for y in range(0,height):
-			self.g.append([])
+			self.arrays.append([])
 			for x in range(0,width):
-				self.g[y].append([Tile(self,x,y,{})])
-
+				self.arrays[y].append(Tile(self,x,y))
 	def __iter__(self):
-
-		for y in self.g:
-			for x in y:
-				yield x[0]
-
+		for y in self.arrays:
+			for t in y:
+				yield t
 	def __repr__(self):
-
 		rtrn = ''
-		for y in self.g:
-			for x in y:
-				rtrn+=x[0].attr['wall'] and '%' or x[0].attr['floor'] and '.' or' '
+		for y in self.arrays:	
+			for t in y:
+				rtrn+=t.get_attribute('wall') and '%' or t.get_attribute('floor') and '.' or ' '
 			rtrn+='\n'
 		return rtrn
-
 	def __call__(self,x,y):
 		exists = 0 <= x <= self.width - 1 and 0 <= y <= self.height - 1
-		return exists and self.g[y][x][0] or False
-
-	def add_tileset(self,tileset):
-
-		self.tilesets.update({tileset.name:tileset})
-
-	def get_tileset(self,tileset_name):
-
-		self.tilesets.get(tileset_name)
-
+		return exists and self.arrays[y][x] or None
+	def add_tileset(self,tileset):											
+		self.tilesets.update({tileset.name:tileset})						
+	def get_tileset(self,tileset_name):										
+		self.tilesets.get(tileset_name)										
 	def get_dimensions(self):
-
 		return (self.width * TILE_SIZE, self.height * TILE_SIZE)
-
-	def get_tile(self, tile_set, x, y):
-
-		tile = set.tilesets[tile_set].get_tile(x, y)
-
-		return tile
-
-	def rand_attr(self, attr, rand):
-
+	def randomize_attribute(self, attr, p=0.5):
 		for tile in self:
-
-			tile.set_attr_rand(attr,rand) and 1 or 0
-
+			tile.chance_set_attribute(attr)
 	def get_border_tiles(self):
-
+		border_coordinates = ()
+		horizontal = (((0,y),(self.width-1,y))  for y in range(self.height))
+		vertical   = (((x,0),(x,self.height-1)) for x in range(self.width))
+		for pair in horizontal:
+			border_coordinates += pair
+		for pair in vertical:
+			border_coordinates += pair
 		border_tiles = []
-
-		print('height,range',range(self.height))
-
-		for y in range(0,self.height):
-			
-			border_tiles.append(self(0,y))
-			border_tiles.append(self(self.width-1,y))
-
-		print('width,range',range(0,self.width))
-		
-		for x in range(0,self.width): 
-			
-			border_tiles.append(self(x,0))
-			border_tiles.append(self(x,self.height-1))
-
+		for x,y in border_coordinates:
+			border_tiles.append(self(x,y))
 		return border_tiles
-
-	def set_border_tiles_attr(self,attr,value):
-
-		for tile in [i for i in set(self.get_border_tiles()) if i]:
-
-			tile.set_attr(attr,value)
-			print(tile)
-
-	def spawn_life(self, rand=0.5):
-
-		self.rand_attr('alive', rand)
-
+	def set_border_tiles_attribute(self,attr,value):
+		for tile in self.get_border_tiles():
+			tile.set_attribute(attr,value)
 	def life_cycle(self, life_minimum=4, death_maximum=4, force_border=True):
-
 		for tile in self:
-
-			tile.set_neighbor_attr_count('alive')
-
+			tile.set_attribute('alive_neighbor_count',tile.count_neighbors_with('alive'))
 		for tile in self:
-
-			alive_neighbor_count = tile.get_attr('alive_neighbor_count')
-
+			alive_neighbor_count = tile.get_attribute('alive_neighbor_count')
 			if alive_neighbor_count > life_minimum:
-
-				tile.set_attr('alive',True)
-
+				tile.set_attribute('alive',True)
 			if alive_neighbor_count < death_maximum:
-
-				tile.set_attr('alive',False)
-
+				tile.set_attribute('alive',False)
 		if force_border:
-
-			self.set_border_tiles_attr('alive',True)
-
-
-	def life_to_tile(self, tileset_name, flavor = 0, cave=False):
-
-		##temporary static tileset
-
-		tileset = self.tilesets['mars']
-
+			self.set_border_tiles_attribute('alive',True)
+	def life_to_layout(self):
 		for tile in self:
-
-			if tile.get_attr('alive'):
-
-				if tile.is_all_neighbors_attr('alive'):
-
-					tile.set_attr('wall',False)
-					tile.set_attr('floor',False)
-					tile.set_attr('void',True)
-					tile.set_attr('block',True)
-
+			if tile.get_attribute('alive'):
+				if tile.is_surrounded_by('alive'):
+					tile.set_attribute('wall',False)
+					tile.set_attribute('block',True)
 				else:
-
-					tile.set_attr('wall',True)
-					tile.set_attr('block',True)
-					
-					##Leave floors under wallls off for now
-
-					#floor = not tile.is_any_neighbor_all_neighbors_attr('alive')
-					#if floor:
-					#	floor_tile = 17 + random.randrange(0,4)
-					#	tile.set_attr('floor',True)
-					#	tile.set_attr('floor_tile',tileset(floor_tile,flavor))
+					tile.set_attribute('wall',True)
+					tile.set_attribute('block',True)
 			else:
-				tile.set_attr('floor',True)
-				tile.set_attr('wall',False)
-				tile.set_attr('block',False)
-				
+				tile.set_attribute('floor',True)
+				tile.set_attribute('block',False)
+	def decorate_layout(self,tileset,flavor=0):
 		for tile in self:
-
-			if tile.get_attr('wall'):
-				wall_tile  = 0
-				floor_tile = False
-				wall_tile  += tile.get_neighbor_attr(0,-1,'wall')    and 1 or 0
-				wall_tile  += tile.get_neighbor_attr(1,0,'wall')     and 2 or 0
-				wall_tile  += tile.get_neighbor_attr(0,1,'wall')     and 4 or 0
-				wall_tile  += tile.get_neighbor_attr(-1,0,'wall')    and 8 or 0
-				floor_tile_north 	=  tile.get_neighbor_attr(0,-1,'floor')
-				floor_tile_east 	=  tile.get_neighbor_attr(1,0,'floor')
-				floor_tile_south 	=  tile.get_neighbor_attr(0,1,'floor')
-				floor_tile_west 	=  tile.get_neighbor_attr(-1,0,'floor') 
-				floor_tile =  floor_tile_north   and -1 or floor_tile
-				floor_tile =  floor_tile_east and -2 or floor_tile
-				floor_tile =  floor_tile_south and -3 or floor_tile
-				floor_tile =  floor_tile_west  and -4 or floor_tile
-				floor_tile =  (floor_tile_north or floor_tile_south) and (floor_tile_west or floor_tile_east) and -5 or floor_tile
-				tile.set_attr('wall_tile',tileset(wall_tile,flavor))
+			x = tile.x
+			y = tile.y
+			if tile.get_attribute('wall'):
+				wall_tile  			= 0
+				floor_tile 			= False
+				wall_tile  			+= tile.get_neighbor_with('wall',0,-1) 	and 1 or 0
+				wall_tile  			+= tile.get_neighbor_with('wall',1,0) 	and 2 or 0
+				wall_tile  			+= tile.get_neighbor_with('wall',0,1) 	and 4 or 0
+				wall_tile  			+= tile.get_neighbor_with('wall',-1,0) 	and 8 or 0
+				floor_tile 			=  tile.get_neighbor_with('floor',0,-1) and -1 or floor_tile
+				floor_tile 			=  tile.get_neighbor_with('floor',1,0) 	and -2 or floor_tile
+				floor_tile 			=  tile.get_neighbor_with('floor',0,1) 	and -3 or floor_tile
+				floor_tile 			=  tile.get_neighbor_with('floor',-1,0) and -4 or floor_tile
+				floor_tile 			=  tile.count_neighbors_with('floor',diag=False)>1 and -5 or floor_tile
+				tile.set_attribute('wall_tile',tileset(wall_tile,flavor))
 				if floor_tile:
-					tile.set_attr('floor',True)
-					tile.set_attr('floor_tile',tileset(floor_tile,flavor))
-
-			if tile.get_attr('floor'):
-				floor_tile = 17 + random.randrange(0,3)
-				tile.set_attr('floor_tile',tileset(floor_tile,flavor))
-
+					tile.set_attribute('floor',True)
+					tile.set_attribute('floor_tile',tileset(floor_tile,flavor))
+			elif tile.get_attribute('floor'):
+				floor_tile = 20 - random.randrange(1,4)
+				tile.set_attribute('floor_tile',tileset(floor_tile,flavor))
 	def render(self):
-
+		print(self)
 		for tile in self:
-			floor_tile = tile.get_attr('floor_tile')
-			wall_tile  = tile.get_attr('wall_tile')
+			floor_tile = tile.get_attribute('floor_tile')
+			wall_tile  = tile.get_attribute('wall_tile')
 			if floor_tile:
 				self.floor.blit(floor_tile,(tile.x*TILE_SIZE, tile.y*TILE_SIZE))
 			if wall_tile:
 				self.walls.blit(wall_tile,(tile.x*TILE_SIZE, tile.y*TILE_SIZE))
-
 		pygame.display.flip()
-
 class Tileset:
-
 	def __init__(self,name,cave=False):
-
 		self.name 	= name
-		
 		self.image 	= pygame.image.load(name+'.png').convert()
-		
-		self.tiles  = []
-		
-		self.width 	= self.image.get_width()
-		
+		self.tiles  = []		
+		self.width 	= self.image.get_width()		
 		self.height = self.image.get_height()
-
-		width_range = range(0, int(self.width/TILE_SIZE))
-		
-		height_range= range(0, int(self.height/TILE_SIZE))
-		
+		width_range = range(0, int(self.width/TILE_SIZE))		
+		height_range= range(0, int(self.height/TILE_SIZE))		
 		for y in height_range:
-		
 			self.tiles.append([])
-		
 			for x in width_range:
-		
 				self.tiles[y].append([])
-		
-				rect = (x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
-		
+				rect = (x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)		
 				self.tiles[y][x] = self.image.subsurface(rect)
-
-		if cave:
-
-			#west,south,east,north
-			cave_tiles = [
-			self.image.subsurface((self.width - TILE_SIZE, 	0, 				TILE_SIZE/2,	TILE_SIZE)),
-			self.image.subsurface((self.width - TILE_SIZE, 	TILE_SIZE/2, 	TILE_SIZE,		TILE_SIZE/2)),
-			self.image.subsurface((self.width - TILE_SIZE/2,0, 				TILE_SIZE/2,	TILE_SIZE)),
-			self.image.subsurface((self.width - TILE_SIZE,	0,				TILE_SIZE,		TILE_SIZE/2))]
-			for tile in cave_tiles:
-				self.tiles[0].append(tile)
-
-	def __call__(self,x,y):
-
-		try:
-		
-			row = self.tiles[y]
-		
-			try:
-		
-				tile = self.tiles[y][x]
-		
-			except IndexError:
-		
-				tile = self.tiles[0][0]
-		
-		except IndexError:
-		
-			tile = self.tiles[0][0]
-
+			if cave:
+				#west,south,east,north
+				cave_tiles = [
+				self.image.subsurface((self.width - TILE_SIZE, 	0, 				TILE_SIZE/2,	TILE_SIZE)),
+				self.image.subsurface((self.width - TILE_SIZE, 	TILE_SIZE/2, 	TILE_SIZE,		TILE_SIZE/2)),
+				self.image.subsurface((self.width - TILE_SIZE/2,0, 				TILE_SIZE/2,	TILE_SIZE)),
+				self.image.subsurface((self.width - TILE_SIZE,	0,				TILE_SIZE,		TILE_SIZE/2))]
+				for tile in cave_tiles:
+					self.tiles[0].append(tile)
+	def __call__(self,x=0,y=0):
+		tile = self.tiles[y][x]
 		return tile
 
 pygame.init()
-
 pygame.display.set_mode((TILE_SIZE * MAP_WIDTH, TILE_SIZE * MAP_HEIGHT))
-
-mars = Tileset('mars',cave=True)
-level = Map(MAP_WIDTH,MAP_HEIGHT)
+mars 	= Tileset('mars',cave=True)
+actors 	= Tileset('starguys')
+level 	= Map(MAP_WIDTH,MAP_HEIGHT)
 level.add_tileset(mars)
-level.spawn_life(0.45)
-print(level(0,0),level(0,0))
-level.life_cycle()
-print(level(0,0),level(0,0))
+level.randomize_attribute('alive')
 level.life_cycle()
 level.life_cycle()
 level.life_cycle()
-level.life_to_tile('mars')
+level.life_to_layout()
+level.decorate_layout(mars)
 level.render()
 
 
