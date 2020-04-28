@@ -91,7 +91,7 @@ class Tile:
 			self.get_neighbor(-1,1),
 			self.get_neighbor(1,1,)] or []
 		neighbors = set(neighbors)
-		neighbors.discard(None)
+		#neighbors.discard(None)
 		return neighbors
 	def get_neighbor_with(self,attr,dx,dy):
 		neighbor = self.get_neighbor(dx,dy)
@@ -158,16 +158,7 @@ class Map:
 	def add_tileset(self,tileset):
 		self.tilesets.update({tileset.name:tileset})
 	def get_tileset(self,tileset_name):										
-		self.tilesets.get(tileset_name)
-	def add_object(self,object,x=0,y=0):
-		dst = self(x,y)
-		while dst.get_attribute('block'):
-			dst = self(random.randrange(0,self.width),random.randrange(0,self.height))
-		object.parent 	= self
-		object.x 		= dst.x
-		object.y 		= dst.y
-		self.objects.append(object)
-
+		self.tilesets.get(tileset_name)										
 	def get_dimensions(self):
 		return (self.width * TILE_SIZE, self.height * TILE_SIZE)
 	def randomize_attribute(self, attr, p=0.5):
@@ -245,35 +236,19 @@ class Map:
 		pygame.display.flip()
 
 class Object:
-	def __init__(self,name,tile):
+	def__init__(self,_map,name,tile,x=0,y=0):
 		self.name   = name
-		self.parent = False
+		self.parent = _map
 		self.tile   = tile
 		self.image  = pygame.surface.Surface((TILE_SIZE,TILE_SIZE))
-		self.image.set_colorkey((0,0,0))
-		self.x 		= False
-		self.y 		= False
-		self.attr   = {}
+		self.image.set_colorkey(0,0,0)
+		self.on     = False
+		self.x 		= x
+		self.y 		= y
 		self.render()
-	def __repr__(self):
-		print(self.name,'@(',self.x,',',self.y,')')
 	def render(self):
-		self.image.blit(self.tile,(0,0))
+		self.image.blit(tile,(0,0))
 		pygame.display.flip()
-
-class Chest(Object):
-
-	def __init__(self,name):
-
-		self.closed = objects(4,0)
-		self.opened = objects(5,0)
-		Object.__init__(self,name,objects(4,0))
-		self.open = False
-
-	def toggle(self):
-		self.open = not self.open
-		self.tile = self.open and objects(5,0) or objects(4,0)
-		self.render()
 
 class Tileset:
 	def __init__(self,name,cave=False):
@@ -305,10 +280,6 @@ class Tileset:
 		return tile
 
 pygame.init()
-
-
-
-
 pygame.display.set_mode((TILE_SIZE * MAP_WIDTH, TILE_SIZE * MAP_HEIGHT))
 mars 	= Tileset('mars',cave=True)
 objects = Tileset('objects')
@@ -322,27 +293,7 @@ level.life_cycle()
 level.life_to_layout()
 level.decorate_layout(mars)
 level.render()
-crates=(Object('crate',objects(0,0)),
-	Object('crate',objects(0,0)),
-	Object('crate',objects(0,0)),
-	Object('crate',objects(0,0)),
-	Object('crate',objects(0,0)),
-	Object('crate',objects(0,0)),
-	Object('crate',objects(0,0)))
-crystals=(Object('crystal',objects(1,0)),
-	Object('crystal',objects(1,0)),
-	Object('crystal',objects(1,0)),
-	Object('crystal',objects(1,0)),
-	Object('crystal',objects(1,0)),
-	Object('crystal',objects(1,0)),
-	Object('crystal',objects(1,0)))
-chest = Chest('ammo crate')
 
-for obstacle in crates:
-	level.add_object(obstacle)
-for obstacle in crystals:
-	level.add_object(obstacle)
-level.add_object(chest)
 
 if __name__ == "__main__":
 	clock = pygame.time.Clock()
@@ -351,9 +302,6 @@ if __name__ == "__main__":
 	while running:
 		screen.blit(level.floor,(0,0))
 		screen.blit(level.walls,(0,0))
-		screen.blit(crystals[1].image,(0,0))
-		for object in level.objects:
-			screen.blit(object.image,(object.x * TILE_SIZE, object.y * TILE_SIZE))
 		pygame.display.flip()
 		for event in pygame.event.get():
 			if event.type == pg.QUIT:
