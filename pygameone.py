@@ -4,43 +4,16 @@ import pygame.locals as pg
 
 import random
 
-##########################################################################
+######################################################################
 #
-#  pygame experiment to learn python
-#
-#  manages a map of tiles
-#
-#  map contains and references tilesets
-#
-#  map renders two static layers to pass to pygame
-#
-#  map will play a cellular automata game to procedurally generate level
-#
-#  maps contain and reference tilesets
-#
-#  tilesets contain subsurfaces at positions
-#
-#  flags can alter a tilesets behavior
-#
-#  tilesets images arranged according to binary math
-#
-#  tiles hold references to the map
-#
-#  tiles hold a dictionary of attributes
-#
-#  tiles can learn about their neighbors
-#
-#  objects maintain a reference to the tile they exist on
-#
-#  mobile objects have reference for tile moving from and coming to
-#
-#  mobile objects can test tiles and other objects
-#
-#  the initial demo contained map generation
+#  Expirementing with pygame for a simmple tile based game
 #  
-#  the second demo will allow movement of a character object with minimal animation
+#  Tiles have methods for accessing selves and neighbors
+#  Maps contains tiles and may be iterated over
+#  Maps can play a game of life to generate caverns and assign tiles
+#  Tilesets are based on a binary system to set walls from 16 options 
 #
-###################################################################################
+######################################################################
 
 
 TILE_SIZE  = 24
@@ -48,16 +21,13 @@ MAP_WIDTH  = 60
 MAP_HEIGHT = 40
 
 ######################################################################
-# The Tile class holds an instance for every tile in the map
-# 
-# can preform various tests on itself and its neighbors
 #
-# testing edge/all/any should be a method on self not neighbors only
+#  The Tile class used to have methods for neighbor access whic have
+#  have been moved into the map class itself
 #
-# no method for preforming operations on attributes
-# 
-# 
-# #####################################################################
+#  Tiles have tuple for coordinates, a set for flags, and a dict
+#
+#######################################################################
 
 class Tile:
 	def __init__(self,_map,x=0,y=0):
@@ -118,10 +88,11 @@ class Tile:
 
 ########################################################################
 # The Map 
-# has subsurfaces for floors and walls
-# call an instance and it will call self.g instance
-# calling the g instance will return tile at x,y or return False
-# can play a game of life to create a procedural cavern
+# contains all the tiles and can generate caves
+# has methods for gathering groups of tiles and filtering them
+# includes a cellular automata process to generate caves
+# contains a dictionary of tilesets
+# should eventually comply in some way with TileD
 ########################################################################
 
 class Map:
@@ -244,6 +215,46 @@ class Map:
 				self.walls.blit(wall_tile,(tile.x*TILE_SIZE, tile.y*TILE_SIZE))
 		pygame.display.flip()
 
+#####################################################################
+# Tilesets create subsurfaces from an image to use as tiles
+# if 'cave' flag is set then they create 4 partial tiles
+# these are used for walls which leave floor partially exposed
+#
+
+class Tileset:
+	def __init__(self,name,cave=False):
+		self.name 	= name
+		self.image 	= pygame.image.load(name+'.png').convert()
+		self.tiles  = []
+		self.objects= []
+		self.width 	= self.image.get_width()		
+		self.height = self.image.get_height()
+		width_range = range(0, int(self.width/TILE_SIZE))		
+		height_range= range(0, int(self.height/TILE_SIZE))		
+		for y in height_range:
+			self.tiles.append([])
+			for x in width_range:
+				self.tiles[y].append([])
+				rect = (x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)		
+				self.tiles[y][x] = self.image.subsurface(rect)
+			if cave:
+				#west,south,east,north
+				cave_tiles = [
+				self.image.subsurface((self.width - TILE_SIZE, 	0, 				TILE_SIZE/2,	TILE_SIZE)),
+				self.image.subsurface((self.width - TILE_SIZE, 	TILE_SIZE/2, 	TILE_SIZE,		TILE_SIZE/2)),
+				self.image.subsurface((self.width - TILE_SIZE/2,0, 				TILE_SIZE/2,	TILE_SIZE)),
+				self.image.subsurface((self.width - TILE_SIZE,	0,				TILE_SIZE,		TILE_SIZE/2))]
+				for tile in cave_tiles:
+					self.tiles[0].append(tile)
+	def __call__(self,x=0,y=0):
+		tile = self.tiles[y][x]
+		return tile
+
+####################
+# Objects contain their own rendering surface
+# objects can render themselvse
+# they are contained in the map object
+
 class Object:
 	def __init__(self,name,tile):
 		self.name   = name
@@ -275,40 +286,8 @@ class Chest(Object):
 		self.tile = self.open and objects(5,0) or objects(4,0)
 		self.render()
 
-class Tileset:
-	def __init__(self,name,cave=False):
-		self.name 	= name
-		self.image 	= pygame.image.load(name+'.png').convert()
-		self.tiles  = []
-		self.objects= []
-		self.width 	= self.image.get_width()		
-		self.height = self.image.get_height()
-		width_range = range(0, int(self.width/TILE_SIZE))		
-		height_range= range(0, int(self.height/TILE_SIZE))		
-		for y in height_range:
-			self.tiles.append([])
-			for x in width_range:
-				self.tiles[y].append([])
-				rect = (x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)		
-				self.tiles[y][x] = self.image.subsurface(rect)
-			if cave:
-				#west,south,east,north
-				cave_tiles = [
-				self.image.subsurface((self.width - TILE_SIZE, 	0, 				TILE_SIZE/2,	TILE_SIZE)),
-				self.image.subsurface((self.width - TILE_SIZE, 	TILE_SIZE/2, 	TILE_SIZE,		TILE_SIZE/2)),
-				self.image.subsurface((self.width - TILE_SIZE/2,0, 				TILE_SIZE/2,	TILE_SIZE)),
-				self.image.subsurface((self.width - TILE_SIZE,	0,				TILE_SIZE,		TILE_SIZE/2))]
-				for tile in cave_tiles:
-					self.tiles[0].append(tile)
-	def __call__(self,x=0,y=0):
-		tile = self.tiles[y][x]
-		return tile
 
 pygame.init()
-
-
-
-
 pygame.display.set_mode((TILE_SIZE * MAP_WIDTH, TILE_SIZE * MAP_HEIGHT))
 mars 	= Tileset('mars',cave=True)
 objects = Tileset('objects')
